@@ -6,6 +6,7 @@ import '../models/task.dart';
 import '../services/database_helper.dart';
 import '../services/notification_service.dart';
 import '../services/settings_service.dart';
+import '../widgets/task_list_item.dart';
 import 'add_task_screen.dart';
 import 'settings_screen.dart';
 import 'package:provider/provider.dart';
@@ -18,6 +19,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static final DateFormat _headerDateFormat = DateFormat('d MMMM yyyy, EEEE', 'tr_TR');
+  static final DateFormat _timeFormat = DateFormat('HH:mm');
+
   List<Task> _tasks = [];
   bool _isLoading = true;
 
@@ -37,13 +41,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _toggleTaskStatus(Task task) async {
-    // Optimistic UI Update to fix laggy reaction
-    setState(() {
-      final index = _tasks.indexWhere((t) => t.id == task.id);
-      if (index != -1) {
-        _tasks[index] = task.copyWith(isCompleted: !task.isCompleted);
-      }
-    });
+    // Local widget handles UI update. We just update data locally and in DB.
+    final index = _tasks.indexWhere((t) => t.id == task.id);
+    if (index != -1) {
+      _tasks[index] = task.copyWith(isCompleted: !task.isCompleted);
+    }
 
     final updatedTask = task.copyWith(isCompleted: !task.isCompleted);
     await DatabaseHelper.instance.update(updatedTask);
@@ -69,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _formatDateHeader(DateTime date) {
-    return DateFormat('d MMMM yyyy, EEEE', 'tr_TR').format(date);
+    return _headerDateFormat.format(date);
   }
 
   bool _isSameDay(DateTime date1, DateTime date2) {
@@ -246,160 +248,21 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                           ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                          child: Dismissible(
-                            key: Key('\${task.id}'),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFF5252),
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFFFF5252).withOpacity(0.3),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
+                        TaskListItem(
+                          task: task,
+                          timeFormat: _timeFormat,
+                          onToggle: () => _toggleTaskStatus(task),
+                          onDelete: () => _deleteTask(task.id!),
+                          onEdit: () async {
+                            final result = await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => AddTaskScreen(task: task),
                               ),
-                              child: const FaIcon(FontAwesomeIcons.trashCan, color: Colors.white, size: 28),
-                            ),
-                            onDismissed: (direction) => _deleteTask(task.id!),
-                            child: AnimatedOpacity(
-                              duration: const Duration(milliseconds: 300),
-                              opacity: task.isCompleted ? 0.6 : 1.0,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surface,
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.02),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                  border: Border.all(
-                                    color: Colors.grey.withOpacity(0.1),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(20),
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    child: InkWell(
-                                      onTap: () async {
-                                        final result = await Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (context) => AddTaskScreen(task: task),
-                                          ),
-                                        );
-                                        if (result == true) {
-                                          _refreshTasks();
-                                        }
-                                      },
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(20),
-                                        child: Row(
-                                          children: [
-                                            GestureDetector(
-                                              onTap: () => _toggleTaskStatus(task),
-                                              child: AnimatedContainer(
-                                                duration: const Duration(milliseconds: 200),
-                                                width: 32,
-                                                height: 32,
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  border: Border.all(
-                                                    color: task.isCompleted
-                                                        ? const Color(0xFF4CAF50)
-                                                        : Colors.grey.shade400,
-                                                    width: 2.5,
-                                                  ),
-                                                  color: task.isCompleted
-                                                      ? const Color(0xFF4CAF50)
-                                                      : Colors.transparent,
-                                                  boxShadow: task.isCompleted
-                                                      ? [
-                                                          BoxShadow(
-                                                            color: const Color(0xFF4CAF50).withOpacity(0.4),
-                                                            blurRadius: 8,
-                                                            offset: const Offset(0, 4),
-                                                          )
-                                                        ]
-                                                      : null,
-                                                ),
-                                                child: task.isCompleted
-                                                    ? const Icon(Icons.check, size: 20, color: Colors.white)
-                                                    : null,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 16),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    task.title,
-                                                    style: TextStyle(
-                                                      fontSize: 18,
-                                                      fontWeight: task.isCompleted ? FontWeight.normal : FontWeight.w600,
-                                                      decoration: task.isCompleted ? TextDecoration.lineThrough : null,
-                                                      color: task.isCompleted ? Colors.grey.shade600 : Theme.of(context).colorScheme.onSurface,
-                                                    ),
-                                                  ),
-                                                  if (task.description.isNotEmpty) ...[
-                                                    const SizedBox(height: 6),
-                                                    Text(
-                                                      task.description,
-                                                      style: TextStyle(
-                                                        fontSize: 14,
-                                                        color: Colors.grey.shade600,
-                                                        decoration: task.isCompleted ? TextDecoration.lineThrough : null,
-                                                      ),
-                                                      maxLines: 2,
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
-                                                  ],
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                              decoration: BoxDecoration(
-                                                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(12),
-                                              ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  FaIcon(FontAwesomeIcons.clock, size: 12, color: Theme.of(context).colorScheme.primary),
-                                                  const SizedBox(width: 6),
-                                                  Text(
-                                                    DateFormat('HH:mm').format(task.date),
-                                                    style: TextStyle(
-                                                      fontSize: 13,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: Theme.of(context).colorScheme.primary,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
+                            );
+                            if (result == true) {
+                              _refreshTasks();
+                            }
+                          },
                         ),
                       ],
                     );

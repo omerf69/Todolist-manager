@@ -15,6 +15,8 @@ class AddTaskScreen extends StatefulWidget {
 }
 
 class _AddTaskScreenState extends State<AddTaskScreen> {
+  static final DateFormat _dateFormat = DateFormat('dd MMM yyyy', 'tr_TR');
+
   final _formKey = GlobalKey<FormState>();
   late String _title;
   late String _description;
@@ -274,7 +276,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          DateFormat('dd MMM yyyy', 'tr_TR').format(_selectedDate),
+                                          _dateFormat.format(_selectedDate),
                                           style: const TextStyle(
                                             fontSize: 15,
                                             fontWeight: FontWeight.bold,
